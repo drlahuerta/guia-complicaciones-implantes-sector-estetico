@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Guía Interactiva — Complicaciones en el Sector Estético</title>
+  <meta name="description" content="Guía interactiva para el manejo de complicaciones de implantes en sector estético." />
+  <style>
+    body { margin:0; background:#fafafa; color:#111827; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+    * { box-sizing: border-box; }
+    .container { max-width: 700px; margin: 0 auto; padding: 1rem; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; line-height: 1.55; }
+    h1 { text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: .5rem; margin-top: 0; font-size: 1.9rem; font-weight: 800; letter-spacing: .02em; }
+    fieldset { border:1px solid #ccc; border-radius:4px; padding:1rem; margin-bottom:1rem; background:#fff; }
+    legend { padding: 0 .25rem; }
+    .section-title { font-weight: 700; margin-bottom: .25rem; }
+    .result { margin-top: 1rem; padding:0; border:2px solid #000; border-radius:12px; background:#ffffff; }
+    .cards { display:grid; grid-template-columns:1fr; gap:.75rem; padding:1rem; }
+    .card { border-radius:10px; padding:.85rem 1rem; border:1px solid rgba(0,0,0,.06); box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    .card b { display:block; margin-bottom:.25rem; }
+    @media (min-width: 700px) { .cards { grid-template-columns: 1fr; } }
+    .subfield { margin-left:1rem; margin-top:.5rem; }
+    label { display:block; margin-bottom:.3rem; cursor:pointer; }
+    .row-actions { display:flex; align-items:center; justify-content:flex-end; gap:.5rem; margin-bottom:.5rem; }
+    .btn { padding:.5rem .75rem; border-radius:.6rem; border:1px solid #d1d5db; background:#f9fafb; cursor:pointer; }
+    .btn:hover { background:#f3f4f6; }
+    .small { font-size: .85rem; opacity: .85; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .refs { border-top: 1px solid #d1d5db; background:#f3f4f6; margin-top: 2rem; }
+    .refs .inner { max-width: 900px; margin: 0 auto; padding: 1rem 1.25rem; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script>
+    // This standalone HTML uses the React global, not module imports.
+    // Explicitly select the classic JSX runtime across Babel versions.
+    Babel.registerPreset("react-classic", {
+      presets: [[Babel.availablePresets.react, { runtime: "classic" }]]
+    });
+  </script>
+  <script type="text/babel" data-presets="react-classic">
+    const { useMemo, useState } = React;
+
+    function computeRecommendations(state) {
+      const recs = [];
+      const {
+        malpos, malAng, vert, hueso,
+        pmmd, zuPosVal, zuPapVal,
+        fenotipo, kmw, selR, selV, selP,
+      } = state || {};
+
+      const req1 = Boolean(malpos && vert);
+      const req2 = (hueso || []).length > 0;
+      const rSelected = Boolean(zuPosVal);
+      const vSelected = Boolean(fenotipo || kmw);
+      const pSelected = Boolean(pmmd || zuPapVal);
+      const req3 = Boolean(rSelected || vSelected || pSelected);
+
+      if (!req1 || !req2 || !req3) return { message: null, list: null };
+
+      if (malAng === "cervical") {
+        const marginIdeal = zuPosVal === "ideal";
+        const hayDefectoOseo = (hueso || []).some(h => h !== "ND");
+        const hayOtrosTejidos = selV || selP;
+        if (marginIdeal && !hayDefectoOseo && !hayOtrosTejidos) {
+          return { message: "• Emergencia vestibular en tercio cervical con margen gingival a nivel ideal: priorizar recambio de corona/modificación del contorno emergente antes de plantear cirugía o explantación.", list: null };
+        }
+        return { message: "• Explantación o sumergir implante y rehacer perfil protésico debido a angulación severa en tercio cervical. (Gamborena & Avila-Ortiz, 2021)", list: null };
+      }
+
+      if (vert === "superficial") {
+        return { message: "• Sumergir implante ± regeneración/engrosamiento de tejidos cuando el hombro está expuesto/coronal al margen ideal (profundidad insuficiente). (Gamborena & Avila-Ortiz, 2021; Carvalho & González, 2019)", list: null };
+      }
+
+      const mapH = {
+        D: "GBR limitada con membrana reabsorbible ± inj. particulado. (Carvalho & González, 2019)",
+        I: "GBR limitada ± extrusión ortodóncica si papila recuperable. (Carvalho & González, 2019)",
+      };
+      (hueso || []).forEach(h => { if (h !== "ND") recs.push(mapH[h]); });
+
+      const vNow = Boolean(fenotipo || kmw);
+      if (selR && !vNow) recs.push("Injerto de tejido conectivo (CAF o túnel) ± provis. (Carvalho & González, 2019)");
+
+      if (vNow) {
+        if (fenotipo === "fino" || kmw === "<2") {
+          recs.push("Engrosamiento con CTG (túnel/CAF) ± provisional para soporte. (Carvalho & González, 2019; Gamborena & Avila-Ortiz, 2021)");
+        } else if (fenotipo === "grueso" || kmw === ">=2") {
+          recs.push("Matriz colágena/alternativa + optimización de contorno transmucoso. (Carvalho & González, 2019)");
+        } else {
+          recs.push("CTG o matriz colágena + provisional según fenotipo y KMW. (Carvalho & González, 2019)");
+        }
+      }
+
+      if (rSelected && zuPosVal) {
+        const papA = zuPapVal === ">=3";
+        const papB = zuPapVal === "1-<3";
+        const papC = zuPapVal === "<=1";
+
+        if (zuPosVal === "ideal") {
+          const hayVolumen = selV || vNow;
+          const hayPapila = selP || Boolean(pmmd || zuPapVal);
+          if (!hayVolumen && !hayPapila) {
+            recs.push("Mantenimiento protésico: pulido y ajustes de contorno transmucoso sin intervención quirúrgica. (Zucchelli et al., 2019)");
+          }
+        }
+
+        if (zuPosVal === "apical") {
+          if (papA || !zuPapVal) recs.push("CAF + CTG sin retirar corona (IIa). (Zucchelli et al., 2019)");
+          else if (papB) recs.push("Abordaje protésico-quirúrgico combinado (IIb). (Zucchelli et al., 2019)");
+          else if (papC) recs.push("Aumento de tejidos blandos con curación sumergida (IIc). (Zucchelli et al., 2019)");
+        }
+
+        if (zuPosVal === "apicalDentro") {
+          if (papA || !zuPapVal) recs.push("Retirar corona + CAF + CTG (IIIa). (Zucchelli et al., 2019)");
+          else if (papB) recs.push("Abordaje protésico-quirúrgico combinado (IIIb). (Zucchelli et al., 2019)");
+          else if (papC) recs.push("Aumento de tejidos blandos con curación sumergida (IIIc). (Zucchelli et al., 2019)");
+        }
+
+        if (zuPosVal === "apicalFuera") {
+          if (papA || !zuPapVal) recs.push("Abordaje protésico-quirúrgico combinado (IVa). (Zucchelli et al., 2019)");
+          else if (papB) recs.push("Aumento de tejidos blandos con curación sumergida (IVb). (Zucchelli et al., 2019)");
+          else if (papC) recs.push("Explantación (IVc). (Zucchelli et al., 2019)");
+        }
+      }
+
+      if (pSelected && pmmd) {
+        const mapPMMD = {
+          unilateral: "Túnel + CTG extendido lingual ± injerto adicional; Extrusión ortodóntica tras maduración si no se alcanza volumen deseado. (Gamborena & Avila-Ortiz, 2021)",
+          bilateral: "Múltiples CTG y VISTA según necesidad; Extrusión ortodóntica cuando la reconstrucción papilar quirúrgica sea insuficiente. (Gamborena & Avila-Ortiz, 2021)",
+        };
+        recs.push(mapPMMD[pmmd]);
+        if (zuPapVal) {
+          const mapPap = {
+            ">=3": "CAF + CTG sin retirar corona; mantenimiento de volumen papilar. (Zucchelli et al., 2019)",
+            "1-<3": "Retirar provisional + CAF + CTG con túnel para papila. (Zucchelli et al., 2019)",
+            "<=1": "Cirugía sumergida con CTG y posibles rondas múltiples. (Zucchelli et al., 2019)",
+          };
+          recs.push(mapPap[zuPapVal]);
+        }
+      }
+
+      const unique = Array.from(new Set(recs));
+      return { message: null, list: unique };
+    }
+
+    function ToggleRadio({ name, value, selected, onChange, label }) {
+      const checked = selected === value;
+      return (
+        <label className="block mb-1 cursor-pointer">
+          <input type="radio" name={name} checked={checked} onChange={() => {}} onClick={() => onChange(checked ? undefined : value)} className="mr-2" />
+          {label}
+        </label>
+      );
+    }
+
+    function ToggleCheck({ checked, onChange, label }) {
+      return (
+        <label className="block mb-1 cursor-pointer">
+          <input type="checkbox" checked={!!checked} onChange={(e)=>onChange(e.target.checked)} className="mr-2" />
+          {label}
+        </label>
+      );
+    }
+
+    function cardColorFor(text, index) {
+      if (/Explantación|explantación|explantacion/i.test(text)) return { bg: "#7b1e3a", fg: "#ffffff" };
+      const palette = ["#e8f5e9","#e3f2fd","#fff8e1","#f3e5f5","#e0f7fa","#fce4ec","#ede7f6","#f1f8e9","#fff3e0","#e8eaf6"];
+      return { bg: palette[index % palette.length], fg: "#1f2937" };
+    }
+
+    function App() {
+      const [malpos, setMalpos] = React.useState();
+      const [malAng, setMalAng] = React.useState();
+      const [vert, setVert] = React.useState();
+
+      const [hueso, setHueso] = React.useState([]);
+      const toggleHueso = (v) => {
+        setHueso((prev) => {
+          const has = prev.includes(v);
+          if (v === "ND") return has ? [] : ["ND"];
+          const next = has ? prev.filter((x) => x !== v) : [...prev.filter((x) => x !== "ND"), v];
+          return next;
+        });
+      };
+
+      const [selR, setSelR] = React.useState(false);
+      const [selV, setSelV] = React.useState(false);
+      const [selP, setSelP] = React.useState(false);
+      const [pmmd, setPmmd] = React.useState();
+      const [zuPosVal, setZuPosVal] = React.useState();
+      const [zuPapVal, setZuPapVal] = React.useState();
+      const [recMargin, setRecMargin] = React.useState();
+      const [crownCurve, setCrownCurve] = React.useState();
+      const [implantLine, setImplantLine] = React.useState();
+      const [fenotipo, setFenotipo] = React.useState();
+      const [kmw, setKmw] = React.useState();
+
+      const [testLog, setTestLog] = React.useState([]);
+
+      const resetAll = () => {
+        setMalpos(undefined); setMalAng(undefined); setVert(undefined);
+        setHueso([]); setSelR(false); setSelV(false); setSelP(false);
+        setPmmd(undefined); setZuPosVal(undefined); setZuPapVal(undefined);
+        setRecMargin(undefined); setCrownCurve(undefined); setImplantLine(undefined);
+        setFenotipo(undefined); setKmw(undefined); setTestLog([]);
+      };
+
+      const onChangeMalpos = (v) => { setMalpos(v); if (v !== "vestibular") setMalAng(undefined); };
+
+      const zuPosValDerived = React.useMemo(() => {
+        if (zuPosVal) return zuPosVal;
+        if (recMargin === 'ideal') return 'ideal';
+        if (recMargin === 'apical') {
+          if (crownCurve === 'dentro') return 'apical';
+          if (crownCurve === 'fuera' && implantLine === 'dentro') return 'apicalDentro';
+          if (crownCurve === 'fuera' && implantLine === 'fuera') return 'apicalFuera';
+        }
+        return undefined;
+      }, [zuPosVal, recMargin, crownCurve, implantLine]);
+
+      const result = React.useMemo(() => computeRecommendations({
+        malpos, malAng, vert, hueso, selR, selV, selP, pmmd,
+        zuPosVal: zuPosValDerived, zuPapVal, fenotipo, kmw
+      }), [malpos, malAng, vert, hueso, selR, selV, selP, pmmd, zuPosValDerived, zuPapVal, fenotipo, kmw]);
+
+      return (
+        <div className="container">
+          <h1>GUÍA INTERACTIVA PARA EL MANEJO DE COMPLICACIONES DE IMPLANTES EN SECTOR ESTÉTICO</h1>
+          <p className="small"><b>Autor:</b> Dr. P. Lahuerta.</p>
+          <p className="small">Selecciona las variables para obtener recomendaciones de tratamiento consolidadas. (Secciones 1–3)</p>
+
+          <fieldset>
+            <legend className="font-bold">1. Posición 3D del implante (Gamborena & Avila-Ortiz, 2021)</legend>
+            <div className="section-title">1.1 Malposición vestibulolingual</div>
+            <ToggleRadio name="malpos" value="palatino" selected={malpos} onChange={onChangeMalpos} label="Emergencia palatina respecto al borde incisal" />
+            <ToggleRadio name="malpos" value="vestibular" selected={malpos} onChange={onChangeMalpos} label="Emergencia vestibular respecto al borde incisal" />
+            {malpos === "vestibular" && (
+              <div className="subfield">
+                <strong>Ángulación vestibular (tercios):</strong>
+                <ToggleRadio name="malAng" value="incisal" selected={malAng} onChange={setMalAng} label="Emergencia en tercio incisal" />
+                <ToggleRadio name="malAng" value="medio" selected={malAng} onChange={setMalAng} label="Emergencia en tercio medio" />
+                <ToggleRadio name="malAng" value="cervical" selected={malAng} onChange={setMalAng} label="Emergencia en tercio cervical" />
+              </div>
+            )}
+            <div className="section-title" style={{marginTop:'.5rem'}}>1.2 Profundidad del implante</div>
+            <ToggleRadio name="vert" value="correcta" selected={vert} onChange={setVert} label="Correcta" />
+            <ToggleRadio name="vert" value="superficial" selected={vert} onChange={setVert} label="Excesivamente superficial (hombro expuesto o a nivel de la cresta)" />
+            <ToggleRadio name="vert" value="profundo" selected={vert} onChange={setVert} label="Excesivamente profundo (&gt; 3 mm submucoso)" />
+          </fieldset>
+
+          <fieldset>
+            <legend className="font-bold">2. Anatomía ósea peri-implantaria (Carvalho & González, 2019)</legend>
+            <label><input type="checkbox" className="mr-2" checked={hueso.includes("ND")} onChange={() => toggleHueso("ND")} /> Sin defecto</label>
+            <label><input type="checkbox" className="mr-2" checked={hueso.includes("D")} onChange={() => toggleHueso("D")} /> Dehiscencia/Fenestración</label>
+            <label><input type="checkbox" className="mr-2" checked={hueso.includes("I")} onChange={() => toggleHueso("I")} /> Defecto interproximal</label>
+          </fieldset>
+
+          <fieldset>
+            <legend className="font-bold">3. Tejidos blandos y defectos interproximales</legend>
+            <ToggleCheck checked={selR} onChange={setSelR} label="Recesión marginal" />
+            {(selR || recMargin || crownCurve || implantLine) && (
+              <div className="subfield">
+                <strong>Recesión: posición del margen (Zucchelli et al., 2019)</strong>
+                <div className="mt-1">
+                  <ToggleRadio name="recMargin" value="ideal" selected={recMargin} onChange={setRecMargin} label="Margen a nivel ideal" />
+                  <ToggleRadio name="recMargin" value="apical" selected={recMargin} onChange={setRecMargin} label="Margen apical" />
+                </div>
+                <div className="mt-2">
+                  <span className="block small" style={{fontWeight:600, display:'block', marginBottom:'.25rem'}}>Relación de la corona con la curva <span style={{opacity:.7}}>(aplica si margen es apical)</span></span>
+                  <ToggleRadio name="crownCurve" value="dentro" selected={crownCurve} onChange={setCrownCurve} label="Corona dentro de la curva" />
+                  <ToggleRadio name="crownCurve" value="fuera" selected={crownCurve} onChange={setCrownCurve} label="Corona fuera de la curva" />
+                </div>
+                <div className="mt-2">
+                  <span className="block small" style={{fontWeight:600, display:'block', marginBottom:'.25rem'}}>Posición del implante respecto a la línea <span style={{opacity:.7}}>(aplica si margen es apical)</span></span>
+                  <ToggleRadio name="implantLine" value="dentro" selected={implantLine} onChange={setImplantLine} label="Implante dentro de línea" />
+                  <ToggleRadio name="implantLine" value="fuera" selected={implantLine} onChange={setImplantLine} label="Implante fuera de línea" />
+                </div>
+                <p className="small" style={{opacity:.85, marginTop:'.5rem'}}>
+                  <strong>Qué significan “dentro/fuera de la curva”:</strong> imagina una <u>curva suave</u> que une los contornos vestibulares de las coronas de los dientes adyacentes. Si la superficie vestibular de la corona del implante queda <u>dentro de esa curva</u>, está alineada con los vecinos; si sobresale por fuera, está <u>fuera de la curva</u> (más vestibular).
+                  <br/>
+                  <strong>Qué significan “dentro/fuera de línea”:</strong> piensa en una <u>línea de referencia</u> que conecta los puntos ideales de emergencia/posición de las cabezas de implante/dientes contiguos en el plano vestibulopalatino. Si la <u>cabeza/plataforma</u> del implante cae en esa línea, está <u>dentro de línea</u>; si se sitúa más hacia vestibular, está <u>fuera de línea</u>.
+                </p>
+              </div>
+            )}
+
+            <ToggleCheck checked={selV} onChange={setSelV} label="Deficiencia de volumen" />
+            {(selV || fenotipo || kmw) && (
+              <div className="subfield">
+                <strong>Deficiencia de volumen — Fenotipo y KMW</strong>
+                <div className="mt-1">
+                  <ToggleRadio name="fenotipo" value="fino" selected={fenotipo} onChange={setFenotipo} label="Fenotipo fino (&lt; 2 mm)" />
+                  <ToggleRadio name="fenotipo" value="grueso" selected={fenotipo} onChange={setFenotipo} label="Fenotipo grueso (≥ 2 mm)" />
+                </div>
+                <div className="mt-1">
+                  <ToggleRadio name="kmw" value="<2" selected={kmw} onChange={setKmw} label="KMW &lt; 2 mm" />
+                  <ToggleRadio name="kmw" value=">=2" selected={kmw} onChange={setKmw} label="KMW ≥ 2 mm" />
+                </div>
+                <p className="small" style={{opacity:.85}}>Las recomendaciones se adaptan según las selecciones de fenotipo/KMW. (Carvalho & González, 2019; Gamborena & Avila-Ortiz, 2021)</p>
+              </div>
+            )}
+
+            <ToggleCheck checked={selP} onChange={setSelP} label="Pérdida de papila" />
+            {(selP || pmmd || zuPapVal) && (
+              <div className="subfield">
+                <strong>Papila: tipo de defecto (Gamborena & Avila-Ortiz, 2021) y altura (Zucchelli et al., 2019)</strong>
+                <div className="mt-1">
+                  <ToggleRadio name="pmmd" value="unilateral" selected={pmmd} onChange={setPmmd} label="Pérdida unilateral de hueso y papila" />
+                  <ToggleRadio name="pmmd" value="bilateral" selected={pmmd} onChange={setPmmd} label="Pérdida bilateral de hueso y papila" />
+                </div>
+                <div className="mt-1">
+                  <ToggleRadio name="zuPapVal" value=">=3" selected={zuPapVal} onChange={setZuPapVal} label="≥ 3 mm coronal al margen" />
+                  <ToggleRadio name="zuPapVal" value="1-<3" selected={zuPapVal} onChange={setZuPapVal} label="1–< 3 mm" />
+                  <ToggleRadio name="zuPapVal" value="<=1" selected={zuPapVal} onChange={setZuPapVal} label="≤ 1 mm" />
+                </div>
+                <p className="small" style={{opacity:.85, marginTop:'.5rem'}}>
+                  <strong>Cómo medir la altura papilar:</strong> identifica la línea del <em>margen mucoso facial</em> (centro vestibular). Mide la distancia vertical desde la punta de la papila hasta esa línea y usa el <em>lado más bajo</em> para clasificar.
+                  <br/>
+                  <strong>Interpretación:</strong> <u>≥ 3 mm</u> = papila alta/buen soporte; <u>1–&lt;3 mm</u> = papila media; <u>≤ 1 mm</u> = papila baja/deficiente.
+                </p>
+              </div>
+            )}
+          </fieldset>
+
+          <div className="row-actions">
+            <button type="button" onClick={resetAll} className="btn">Limpiar selección</button>
+          </div>
+
+          <h2 style={{marginTop:'.5rem', fontWeight:700, fontSize:'1.1rem'}}>RECOMENDACIONES CLÍNICAS</h2>
+
+          <div className="result" aria-live="polite">
+            {result.message ? (
+              (() => { const { bg, fg } = cardColorFor(result.message, 0); return (
+                <div className="cards"><div className="card" style={{ background: bg, color: fg, borderColor: "transparent" }}>{result.message}</div></div>
+              );})()
+            ) : result.list && result.list.length ? (
+              <div className="cards">
+                {result.list.map((r, i) => { const { bg, fg } = cardColorFor(r, i); return (
+                  <div key={i} className="card" style={{ background: bg, color: fg }}>{r}</div>
+                );})}
+              </div>
+            ) : (
+              <div className="cards">
+                <div className="card" style={{ background: "#f5f7fa", color: "#243b53" }}>
+                  Selecciona las variables para ver las recomendaciones.
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="small" style={{marginTop:'1rem', background:'#f9fafb', border:'1px solid #e5e7eb', padding:'.75rem', borderRadius:'.6rem'}}>
+            <p className="m-0"><strong>Aviso</strong> — Este algoritmo tiene un propósito <em>informativo y docente</em>. Está concebido como guía clínica de apoyo a la decisión y <u>no sustituye</u> el juicio profesional del odontólogo ni los protocolos oficiales. El autor declina cualquier responsabilidad derivada del uso clínico directo de esta herramienta; la aplicación de las recomendaciones debe individualizarse en función de la historia, diagnóstico, riesgos y preferencias del paciente, conforme a la lex artis y a la normativa vigente.</p>
+          </div>
+
+          <section className="refs">
+            <div className="inner">
+              <h3 style={{marginTop:0}}>Referencias bibliográficas</h3>
+              <ol style={{ listStyle: 'decimal', paddingLeft: '1.25rem', margin: 0 }}>
+                <li>Gamborena I, Avila-Ortiz G. <em>Peri-implant marginal mucosa defects: Classification and clinical management.</em> J Periodontol. 2021 Jul;92(7):947-957.</li>
+                <li>Zucchelli G, Tavelli L, Stefanini M, Barootchi S, Mazzotti C, Gori G, Wang HL. <em>Classification of facial peri-implant soft tissue dehiscence/deficiencies at single implant sites in the esthetic zone.</em> J Periodontol. 2019 Oct;90(10):1116-1124.</li>
+                <li>Mesquita De Carvalho PF, Joly JC, Carvalho Da Silva R, González-Martín O. <em>Therapeutic alternatives for addressing pink esthetic complications in single-tooth implants: A proposal for a clinical decision tree.</em> J Esthet Restor Dent. 2019 Sep;31(5):403-414.</li>
+              </ol>
+            </div>
+          </section>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
